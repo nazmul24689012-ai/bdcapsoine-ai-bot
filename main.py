@@ -1,10 +1,10 @@
 import asyncio, random, os, threading
 from flask import Flask
-from telegram import Bot
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
 TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL = "@bdcapsoine"
-bot = Bot(token=TOKEN)
 
 app = Flask(__name__)
 @app.route('/')
@@ -34,16 +34,40 @@ def generate_caption():
     sel = random.sample(lines_pool, c-1)
     return "\n".join([f"{l}।" for l in sel]) + f"\n\n{random.choice(endings)}"
 
-async def auto_post():
+# --- কথা বলার জন্য কমান্ড ---
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("আমি চালু আছি ভাই ✅\nতোমার @bdcapsoine চ্যানেলে প্রতি ১৫ মিনিট পর পর অটো পোস্ট করছি। 🖤")
+
+async def any_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("হ্যাঁ ভাই, আমি জেগে আছি! ✅\nচ্যানেলে পোস্ট চলছে।")
+
+async def auto_post(app_bot):
     while True:
         try:
-            await bot.send_message(chat_id=CHANNEL, text=generate_caption())
+            await app_bot.bot.send_message(chat_id=CHANNEL, text=generate_caption())
+            print("Posted to channel")
         except Exception as e:
             print(e)
         await asyncio.sleep(900) # 15 min
 
+async def main_bot():
+    application = ApplicationBuilder().token(TOKEN).build()
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, any_message))
+    
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling()
+    
+    # অটো পোস্ট চালু
+    asyncio.create_task(auto_post(application))
+    
+    # বটকে চালু রাখা
+    while True:
+        await asyncio.sleep(3600)
+
 def run_bot():
-    asyncio.run(auto_post())
+    asyncio.run(main_bot())
 
 threading.Thread(target=run_bot, daemon=True).start()
 
