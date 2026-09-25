@@ -1,10 +1,14 @@
-import asyncio, random, os, threading
+import asyncio, random, os, threading, google.generativeai as genai
 from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
 TOKEN = os.environ.get("BOT_TOKEN")
+GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
 CHANNEL = "@bdcapsoine"
+
+if GEMINI_KEY:
+    genai.configure(api_key=GEMINI_KEY)
 
 app = Flask(__name__)
 @app.route('/')
@@ -34,12 +38,23 @@ def generate_caption():
     sel = random.sample(lines_pool, c-1)
     return "\n".join([f"{l}।" for l in sel]) + f"\n\n{random.choice(endings)}"
 
-# --- কথা বলার জন্য কমান্ড ---
+# --- কথা বলার জন্য ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("আমি চালু আছি ভাই ✅\nতোমার @bdcapsoine চ্যানেলে প্রতি ১৫ মিনিট পর পর অটো পোস্ট করছি। 🖤")
 
 async def any_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("হ্যাঁ ভাই, আমি জেগে আছি! ✅\nচ্যানেলে পোস্ট চলছে।")
+    user_text = update.message.text
+    try:
+        if GEMINI_KEY:
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            response = await asyncio.to_thread(model.generate_content, user_text)
+            reply = response.text
+        else:
+            reply = "ভাই GEMINI_API_KEY পাচ্ছি না, তাই উত্তর দিতে পারছি না।"
+        await update.message.reply_text(reply)
+    except Exception as e:
+        print(e)
+        await update.message.reply_text("একটু সমস্যা হচ্ছে ভাই, আবার বলো তো।")
 
 async def auto_post(app_bot):
     while True:
@@ -48,7 +63,7 @@ async def auto_post(app_bot):
             print("Posted to channel")
         except Exception as e:
             print(e)
-        await asyncio.sleep(900) # 15 min
+        await asyncio.sleep(900)
 
 async def main_bot():
     application = ApplicationBuilder().token(TOKEN).build()
@@ -59,10 +74,8 @@ async def main_bot():
     await application.start()
     await application.updater.start_polling()
     
-    # অটো পোস্ট চালু
     asyncio.create_task(auto_post(application))
     
-    # বটকে চালু রাখা
     while True:
         await asyncio.sleep(3600)
 
