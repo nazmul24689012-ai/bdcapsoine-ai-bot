@@ -1,14 +1,17 @@
 from flask import Flask
 import threading
-app = Flask(__name__)
-@app.route('/')
-def home(): return "Bot is Running - @bdcapsoine"
-threading.Thread(target=lambda: app.run(host='0.0.0.0', port=10000)).start()import asyncio
+import asyncio
 import random
 import json
 import os
 import google.generativeai as genai
 from telegram import Bot
+
+app = Flask(__name__)
+
+@app.route('/')
+def home(): 
+    return "Bot is Running - @bdcapsoine"
 
 # সেফ নিয়ম - কোডে সরাসরি Key নেই, Render থেকে আসবে
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -36,7 +39,8 @@ if os.path.exists(POSTED_FILE):
     try:
         with open(POSTED_FILE, "r", encoding="utf-8") as f:
             posted_list = json.load(f)
-    except: posted_list = []
+    except: 
+        posted_list = []
 
 async def generate_story():
     topic = random.choice(TOPICS)
@@ -68,4 +72,5 @@ async def main():
             await asyncio.sleep(60)
 
 if __name__ == "__main__":
+    threading.Thread(target=lambda: app.run(host='0.0.0.0', port=10000)).start()
     asyncio.run(main())
