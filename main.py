@@ -1,4 +1,4 @@
-import asyncio, random, os, threading
+import asyncio, os, threading
 from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
@@ -8,45 +8,41 @@ TOKEN = os.environ.get("BOT_TOKEN")
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
 CHANNEL = "@bdcapsoine"
 
-client = None
-if GEMINI_KEY:
-    client = genai.Client(api_key=GEMINI_KEY)
+client = genai.Client(api_key=GEMINI_KEY) if GEMINI_KEY else None
 
 app = Flask(__name__)
 @app.route('/')
 def home():
-    return "Bot is Running"
+    return "Bot is Running - AI Mode"
 
-# AI দিয়ে ক্যাপশন বানানোর ফাংশন
+# AI দিয়ে মুড বুঝে ইমোজি সহ ক্যাপশন
 def generate_caption():
     try:
-        if not client:
-            return "তোমাকে ভীষণ মনে পড়ছে আজ।\n\nভালো থেকো, যেখানেই থাকো। 🖤"
-
         prompt = """
         তুমি @bdcapsoine চ্যানেলের জন্য বাংলায় ৪-৬ লাইনের একটি ইমোশনাল, স্যাড, রোমান্টিক ক্যাপশন লেখো।
-        প্রত্যেক লাইন ছোট হবে।
-        ভালোবাসা, মায়া, যত্ন, অভিমান, মনে পড়া, সম্মান নিয়ে লিখবে।
-        শেষে একটা সুন্দর ইমোজি সহ ending দিবে যেমন: ভালো থেকো যেখানেই থাকো 🖤 বা ফিরে এসো অপেক্ষায় আছি ❤️
-        একই কথা বারবার লিখবে না, প্রতিবার নতুন লিখবে।
+        প্রত্যেকবার একদম নতুন ক্যাপশন লিখবে, আগেরটা কপি করবে না।
+
+        নিয়ম:
+        - ক্যাপশন যদি কষ্টের / ব্রেকআপ / একাকিত্বের হয় তাহলে শেষে 🥀 😔 💔 🖤 😢 😭 এইগুলো থেকে মানানসই ইমোজি দিবে
+        - ভালোবাসা / মায়া / যত্নের হলে ❤️ 🥰 😘 🌸 🤍 দিবে
+        - মনে পড়া / অপেক্ষা / রাত জাগা হলে 🌙 🥺 ✨ দিবে
+        - ইমোজি দেখেই যেন কষ্টটা বোঝা যায়, ক্যাপশনের মুড অনুযায়ী ইমোজি দিবে।
+        - ২-৩ টার বেশি ইমোজি দিবে না।
         """
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt
-        )
-        return response.text.strip()
+        res = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+        return res.text.strip()
     except Exception as e:
         print(f"Caption Error: {e}")
-        return "মায়া বড় খারাপ জিনিস, ছাড়তেও দেয় না।\nতোমার মায়ায় আটকে গেছি আজও।\n\nভালো থেকো, যেখানেই থাকো। 🖤"
+        return "তোমার মায়ায় আজও আটকে আছি।\nভুলতে পারিনি তোমায়।\n\nভালো থেকো যেখানেই থাকো। 🥀💔"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("আমি চালু আছি ভাই ✅\nতোমার @bdcapsoine চ্যানেলে প্রতি ১৫ মিনিট পর পর AI দিয়ে অটো পোস্ট করছি। 🖤")
+    await update.message.reply_text("চালু আছি ভাই ✅\nএখন থেকে AI মুড বুঝে ইমোজি সহ ক্যাপশন দিবে।")
 
 async def any_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     try:
         if not client:
-            await update.message.reply_text("ভাই GEMINI_API_KEY পাচ্ছি না।")
+            await update.message.reply_text("ভাই GEMINI_API_KEY পাচ্ছি না Render এ।")
             return
         response = await asyncio.to_thread(
             client.models.generate_content,
@@ -55,18 +51,18 @@ async def any_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await update.message.reply_text(response.text)
     except Exception as e:
-        print(f"GEMINI ERROR: {e}")
-        await update.message.reply_text(f"এরর হচ্ছে: {e}")
+        print(f"CHAT ERROR: {e}")
+        await update.message.reply_text(f"এরর হচ্ছে ভাই: {e}")
 
 async def auto_post(app_bot):
     while True:
         try:
             caption = await asyncio.to_thread(generate_caption)
             await app_bot.bot.send_message(chat_id=CHANNEL, text=caption)
-            print("AI Caption Posted")
+            print(f"Posted: {caption}")
         except Exception as e:
-            print(e)
-        await asyncio.sleep(900) # 15 min
+            print(f"Post Error: {e}")
+        await asyncio.sleep(900)  # 15 মিনিট
 
 async def main_bot():
     application = ApplicationBuilder().token(TOKEN).build()
