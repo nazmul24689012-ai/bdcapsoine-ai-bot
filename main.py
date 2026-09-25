@@ -31,7 +31,7 @@ def generate_caption():
         একই কথা বারবার লিখবে না, প্রতিবার নতুন লিখবে।
         """
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             contents=prompt
         )
         return response.text.strip()
@@ -50,7 +50,7 @@ async def any_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         response = await asyncio.to_thread(
             client.models.generate_content,
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             contents=user_text
         )
         await update.message.reply_text(response.text)
