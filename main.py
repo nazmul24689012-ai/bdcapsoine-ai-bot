@@ -63,11 +63,10 @@ async def main_bot():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, any_message))
     await application.initialize()
     await application.start()
-        await application.updater.start_polling(drop_pending_updates=True)()
+    await application.updater.start_polling(drop_pending_updates=True)
     asyncio.create_task(auto_post(application))
     while True:
         await asyncio.sleep(3600)
-
 def run_bot():
     asyncio.run(main_bot())
 
